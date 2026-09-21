@@ -1,0 +1,137 @@
+*tatr.txt*  Neovim frontend for the tatr task tracker
+
+Author:  @anoopkcn <https://github.com/anoopkcn>
+
+==============================================================================
+CONTENTS                                                       *tatr-contents*
+
+1. Introduction ................................ |tatr-introduction|
+2. Commands .................................... |tatr-commands|
+3. Configuration ............................... |tatr-configuration|
+4. Lua API ..................................... |tatr-api|
+
+==============================================================================
+1. INTRODUCTION                                            *tatr-introduction*
+
+tatr <https://github.com/tsoding/tatr> keeps tasks in a `tasks/` folder at
+the root of a project, one `tasks/<HUID>/TASK.md` per task. A HUID is the UTC
+time the task was created, `YYYYMMDD-HHMMSS`, optionally extended with a
+suffix: `20260830-000838-rexim`.
+
+The `tasks/` folder is found by walking up from the directory of the current
+buffer, or from the working directory for buffers that are not files. oil.nvim
+directory buffers are understood too.
+
+Everything except |:Tatr-ls| is implemented in Lua and does not need the
+`tatr` executable.
+
+==============================================================================
+2. COMMANDS                                                    *tatr-commands*
+
+                                                                       *:Tatr*
+:Tatr {subcommand} [args]
+    Subcommands, HUIDs, tags and TQL keywords complete with <Tab>.
+
+                                                                   *:Tatr-new*
+:Tatr new [title]
+    Create `tasks/<HUID>/TASK.md` with `title` and open it with
+    |tatr-open_cmd|. Prompts for the title when omitted. >
+        # <title>
+
+        - STATUS: OPEN
+        - PRIORITY: 100
+        - TAGS: scope
+<
+                                                                  *:Tatr-todo*
+:Tatr todo
+    Turn the TODO on the current line into a task and open it. Two forms are
+    recognized: >
+        // TODO: make it fast
+        // TODO(2026-01-02 03:04:05): make it fast
+<   The second one uses its timestamp as the HUID. The line is rewritten to: >
+        // TASK(20260102-030405): make it fast
+<
+                                                                  *:Tatr-find*
+:Tatr find [huid]
+    Open the task `huid`. Without an argument uses the HUID under the cursor,
+    and without one of those picks from the open tasks with |vim.ui.select()|.
+
+                                                                   *:Tatr-ref*
+:Tatr ref [huid]
+    Grep the project for `huid` and load the matches into the |quickfix|
+    list. Without an argument uses the HUID under the cursor, then the task
+    the current buffer belongs to. Uses `rg` when available, `grep`
+    otherwise. `.git/` is skipped.
+
+                                                                  *:Tatr-yank*
+:Tatr yank
+    Copy the HUID of the task the current buffer belongs to into
+    |tatr-register|.
+
+                                                                    *:Tatr-ls*
+:Tatr ls [options] [query]
+    Run `tatr ls` from the project root and load the tasks into the
+    |quickfix| list. Arguments are passed through, so TQL queries and flags
+    work as on the command line: >
+        :Tatr ls :bug and not :ui
+        :Tatr ls -c :release
+        :Tatr ls :scope and priority gt 100
+<   Requires the `tatr` executable, see |tatr-tatr_cmd|.
+
+==============================================================================
+3. CONFIGURATION                                          *tatr-configuration*
+
+Calling `setup()` is optional. Defaults: >lua
+    require("tatr").setup({
+        default_priority = 100,
+        default_tags = { "scope" },
+        huid_suffix = nil,
+        open_cmd = "split",
+        register = "+",
+        tatr_cmd = "tatr",
+    })
+<
+                                                       *tatr-default_priority*
+default_priority ~
+    PRIORITY of new tasks.
+
+                                                           *tatr-default_tags*
+default_tags ~
+    TAGS of new tasks. Use `{}` for none.
+
+                                                            *tatr-huid_suffix*
+huid_suffix ~
+    Suffix appended to new HUIDs, so people working on the same repo do not
+    collide. `"akc"` gives `20260921-101010-akc`. Only `[a-zA-Z0-9-]`.
+
+                                                               *tatr-open_cmd*
+open_cmd ~
+    Ex command used to open a TASK.md: `"split"`, `"vsplit"`, `"edit"`,
+    `"tabedit"`, ... A window in the current tab that already shows the file
+    is focused instead.
+
+                                                               *tatr-register*
+register ~
+    Register |:Tatr-yank| copies the HUID into.
+
+                                                               *tatr-tatr_cmd*
+tatr_cmd ~
+    The `tatr` executable used by |:Tatr-ls|.
+
+==============================================================================
+4. LUA API                                                          *tatr-api*
+
+The subcommands are available as functions of `require("tatr")`: >lua
+    require("tatr").new(title)   -- title is optional
+    require("tatr").todo()
+    require("tatr").find(huid)   -- huid is optional
+    require("tatr").ref(huid)    -- huid is optional
+    require("tatr").yank()
+    require("tatr").ls(args)     -- list of arguments for `tatr ls`
+<
+No keymaps are set by default. For example: >lua
+    vim.keymap.set("n", "<leader>tn", "<CMD>Tatr new<CR>")
+    vim.keymap.set("n", "<leader>tt", "<CMD>Tatr todo<CR>")
+    vim.keymap.set("n", "<leader>tf", "<CMD>Tatr find<CR>")
+<
+ vim:tw=78:ts=8:ft=help:norl:
