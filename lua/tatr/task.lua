@@ -36,6 +36,19 @@ function M.huid_at(line, col)
     end
 end
 
+-- Returns the HUID of the `TASK(<huid>)` reference in `line` that starts
+-- closest before the 1-based byte column `col`, or else the first one after it.
+function M.task_ref_at(line, col)
+    local found
+    for s, huid in line:gmatch("()TASK%(([%w%-]+)%)") do
+        if M.is_huid(huid) then
+            if s > col then return found or huid end
+            found = huid
+        end
+    end
+    return found
+end
+
 -- Walks up from `dir` looking for a tasks/ folder.
 function M.find_db(dir)
     return vim.fs.find("tasks", { upward = true, type = "directory", path = dir, limit = 1 })[1]

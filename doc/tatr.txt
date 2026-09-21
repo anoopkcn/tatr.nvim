@@ -56,6 +56,15 @@ Everything except |:Tatr-ls| is implemented in Lua and does not need the
     Open the task `huid`. Without an argument uses the HUID under the cursor,
     and without one of those picks from the open tasks with |vim.ui.select()|.
 
+                                                                  *:Tatr-goto*
+:Tatr goto
+    Open the task under the cursor: the HUID under the cursor, or else the
+    `TASK(<HUID>)` reference on the current line, so the cursor can be
+    anywhere on a line like: >
+        // TASK(20260102-030405): make it fast
+<   With several references on the line, the one that starts closest before
+    the cursor wins.
+
                                                                    *:Tatr-ref*
 :Tatr ref [huid]
     Grep the project for `huid` and load the matches into the |quickfix|
@@ -125,6 +134,7 @@ The subcommands are available as functions of `require("tatr")`: >lua
     require("tatr").new(title)   -- title is optional
     require("tatr").todo()
     require("tatr").find(huid)   -- huid is optional
+    require("tatr").goto_task()
     require("tatr").ref(huid)    -- huid is optional
     require("tatr").yank()
     require("tatr").ls(args)     -- list of arguments for `tatr ls`

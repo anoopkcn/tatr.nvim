@@ -184,13 +184,8 @@ local function select_task(db)
     end)
 end
 
--- Opens the task `huid`, the HUID under the cursor, or one picked from the
--- open tasks.
-function M.find(huid)
-    local db = get_db()
-    if not db then return end
-    if not huid or huid == "" then huid = cursor_huid() end
-    if not huid then return select_task(db) end
+-- Opens tasks/<huid>/TASK.md.
+local function open_task(db, huid)
     if not task.is_huid(huid) then
         notify(huid .. " is not a valid HUID")
         return
@@ -201,6 +196,31 @@ function M.find(huid)
         return
     end
     open(path)
+end
+
+-- Opens the task `huid`, the HUID under the cursor, or one picked from the
+-- open tasks.
+function M.find(huid)
+    local db = get_db()
+    if not db then return end
+    if not huid or huid == "" then huid = cursor_huid() end
+    if not huid then return select_task(db) end
+    open_task(db, huid)
+end
+
+-- Opens the task under the cursor: the HUID under the cursor, or the
+-- `TASK(<huid>)` reference on the current line.
+function M.goto_task()
+    local line = vim.api.nvim_get_current_line()
+    local col = vim.api.nvim_win_get_cursor(0)[2] + 1
+    local huid = task.huid_at(line, col) or task.task_ref_at(line, col)
+    if not huid then
+        notify("No task under cursor")
+        return
+    end
+    local db = get_db()
+    if not db then return end
+    open_task(db, huid)
 end
 
 -- Runs `cmd` and loads its output into the quickfix list.
@@ -307,12 +327,13 @@ local subcommands = {
     new = function(rest) M.new(rest) end,
     todo = function() M.todo() end,
     find = function(_, args) M.find(args[1]) end,
+    ["goto"] = function() M.goto_task() end,
     ref = function(_, args) M.ref(args[1]) end,
     yank = function() M.yank() end,
     ls = function(_, args) M.ls(args) end,
 }
 
-local usage = "Usage: :Tatr {new|todo|find|ref|yank|ls} [args]"
+local usage = "Usage: :Tatr {new|todo|find|goto|ref|yank|ls} [args]"
 
 -- Handler for the :Tatr user command.
 function M.command(opts)

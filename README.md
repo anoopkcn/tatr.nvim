@@ -46,6 +46,7 @@ Calling `setup()` is optional. The `:Tatr` command works with the defaults.
 | `:Tatr new [title]` | Create a task and open its `TASK.md`. Prompts for the title if omitted. |
 | `:Tatr todo` | Turn the `TODO: title` or `TODO(YYYY-MM-DD HH:MM:SS): title` on the current line into a task and rewrite the line to `TASK(<HUID>): title`. The timestamped form uses the timestamp as the HUID. |
 | `:Tatr find [huid]` | Open a task. Uses the argument, then the HUID under the cursor, then a picker of open tasks. |
+| `:Tatr goto` | Open the task under the cursor: the HUID under the cursor, or the `TASK(<HUID>)` reference on the current line. |
 | `:Tatr ref [huid]` | Grep the project for a HUID into the quickfix list. Uses the argument, then the HUID under the cursor, then the task the current buffer belongs to. |
 | `:Tatr yank` | Copy the HUID of the task the current buffer belongs to. |
 | `:Tatr ls [query]` | Run `tatr ls [query]` and load the result into the quickfix list, e.g. `:Tatr ls :bug and not :ui` or `:Tatr ls -c`. |
@@ -79,13 +80,14 @@ No keymaps are set by default. For example:
 vim.keymap.set("n", "<leader>tn", "<CMD>Tatr new<CR>", { desc = "tatr: new task" })
 vim.keymap.set("n", "<leader>tt", "<CMD>Tatr todo<CR>", { desc = "tatr: TODO to task" })
 vim.keymap.set("n", "<leader>tf", "<CMD>Tatr find<CR>", { desc = "tatr: find task" })
+vim.keymap.set("n", "<leader>tg", "<CMD>Tatr goto<CR>", { desc = "tatr: go to task under cursor" })
 vim.keymap.set("n", "<leader>tr", "<CMD>Tatr ref<CR>", { desc = "tatr: task references" })
 vim.keymap.set("n", "<leader>ty", "<CMD>Tatr yank<CR>", { desc = "tatr: yank HUID" })
 vim.keymap.set("n", "<leader>tl", "<CMD>Tatr ls<CR>", { desc = "tatr: list tasks" })
 ```
 
 The same actions are available from Lua: `require("tatr").new(title)`,
-`.todo()`, `.find(huid)`, `.ref(huid)`, `.yank()` and `.ls(args)`.
+`.todo()`, `.find(huid)`, `.goto_task()`, `.ref(huid)`, `.yank()` and `.ls(args)`.
 
 ## Coming from tatr.el
 
