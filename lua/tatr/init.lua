@@ -30,16 +30,10 @@ local function notify(msg, level)
     vim.notify("tatr: " .. msg, level or vim.log.levels.ERROR)
 end
 
--- Path of the current buffer, understanding oil.nvim directory buffers.
-local function buf_path()
-    local name = vim.api.nvim_buf_get_name(0):gsub("^oil://", "")
-    return name
-end
-
 -- Directory the tasks/ lookup starts from: the buffer's directory, or the cwd
 -- for buffers that are not backed by a file.
 local function start_dir()
-    local name = buf_path()
+    local name = vim.api.nvim_buf_get_name(0)
     if name ~= "" then
         if vim.fn.isdirectory(name) == 1 then return vim.fs.normalize(name) end
         local dir = vim.fs.dirname(name)
@@ -57,7 +51,7 @@ end
 -- HUID of the task folder the current buffer belongs to.
 local function current_task()
     local db = task.find_db(start_dir())
-    if db then return task.task_of(vim.fs.normalize(buf_path()), db) end
+    if db then return task.task_of(vim.fs.normalize(vim.api.nvim_buf_get_name(0)), db) end
 end
 
 local function cursor_huid()
@@ -98,6 +92,8 @@ local function create(db, title, huid)
             "- STATUS: OPEN",
             "- PRIORITY: " .. M.config.default_priority,
             "- TAGS:" .. (tags ~= "" and " " .. tags or ""),
+            "",
+            "No description.",
         }, path)
     end)
     if not ok then
@@ -124,6 +120,19 @@ function M.new(title)
     end
 end
 
+-- Strips a trailing comment closer like `-->` or `*/` from a TODO title.
+local function strip_comment_closer(title)
+    local closers = { "-->", "*/" }
+    local cs_end = vim.trim(vim.bo.commentstring:match("%%s(.*)$") or "")
+    if cs_end ~= "" then table.insert(closers, 1, cs_end) end
+    for _, closer in ipairs(closers) do
+        if vim.endswith(title, closer) then
+            return vim.trim(title:sub(1, -#closer - 1))
+        end
+    end
+    return title
+end
+
 -- Turns `TODO: title` or `TODO(YYYY-MM-DD HH:MM:SS): title` on the current
 -- line into a task and rewrites the line to `TASK(<huid>): title`.
 function M.todo()
@@ -143,7 +152,9 @@ function M.todo()
         return
     end
     title = vim.trim(title)
-    if title == "" then
+    -- The rewritten line keeps the closer, TASK.md's title does not.
+    local task_title = strip_comment_closer(title)
+    if task_title == "" then
         notify("TODO has no title")
         return
     end
@@ -155,7 +166,7 @@ function M.todo()
     local db = get_db()
     if not db then return end
     local path
-    huid, path = create(db, title, huid)
+    huid, path = create(db, task_title, huid)
     if not huid then return end
 
     local row = vim.api.nvim_win_get_cursor(0)[1]
@@ -163,7 +174,9 @@ function M.todo()
     open(path)
 end
 
-local function select_task(db)
+-- Loads the open tasks into the quickfix list, sorted and formatted like
+-- `tatr ls`.
+local function open_tasks_to_quickfix(db)
     local tasks = vim.tbl_filter(function(t) return t.status ~= "CLOSED" end, task.list(db))
     if #tasks == 0 then
         notify("No open tasks", vim.log.levels.INFO)
@@ -173,15 +186,17 @@ local function select_task(db)
         if a.priority ~= b.priority then return a.priority > b.priority end
         return a.huid > b.huid
     end)
-    vim.ui.select(tasks, {
-        prompt = "Task: ",
-        format_item = function(t)
-            local tags = #t.tags > 0 and " [" .. table.concat(t.tags, ",") .. "]" or ""
-            return ("%s %s%s"):format(t.huid, t.title, tags)
-        end,
-    }, function(t)
-        if t then open(t.path) end
-    end)
+    local items = {}
+    for _, t in ipairs(tasks) do
+        local tags = #t.tags > 0 and " [" .. table.concat(t.tags, ",") .. "]" or ""
+        items[#items + 1] = {
+            filename = t.path,
+            lnum = 1,
+            text = ("%s [PRIORITY: %d]%s %s"):format(t.status, t.priority, tags, t.title),
+        }
+    end
+    vim.fn.setqflist({}, " ", { title = "tatr find", items = items })
+    vim.cmd("botright copen")
 end
 
 -- Opens tasks/<huid>/TASK.md.
@@ -198,13 +213,13 @@ local function open_task(db, huid)
     open(path)
 end
 
--- Opens the task `huid`, the HUID under the cursor, or one picked from the
--- open tasks.
+-- Opens the task `huid` or the HUID under the cursor. Without either, loads
+-- the open tasks into the quickfix list.
 function M.find(huid)
     local db = get_db()
     if not db then return end
     if not huid or huid == "" then huid = cursor_huid() end
-    if not huid then return select_task(db) end
+    if not huid then return open_tasks_to_quickfix(db) end
     open_task(db, huid)
 end
 
@@ -266,7 +281,8 @@ function M.ref(huid)
 
     local cmd, efm
     if vim.fn.executable("rg") == 1 then
-        cmd = { "rg", "--vimgrep", "--fixed-strings", "--hidden", "--glob", "!.git", "--", huid, root }
+        -- --no-ignore: like `tatr ref`, search ignored files too
+        cmd = { "rg", "--vimgrep", "--fixed-strings", "--hidden", "--no-ignore", "--glob", "!.git", "--", huid, root }
         efm = "%f:%l:%c:%m"
     else
         cmd = { "grep", "-rIn", "--fixed-strings", "--exclude-dir=.git", "--", huid, root }
@@ -365,10 +381,13 @@ function M.complete(arglead, cmdline, cursorpos)
         local sub = words[2]
         local db = task.find_db(start_dir())
         if db and (sub == "find" or sub == "ref") and n == 3 then
-            for name in vim.fs.dir(db) do
-                if task.is_huid(name) then candidates[#candidates + 1] = name end
+            local tasks = task.list(db)
+            table.sort(tasks, function(a, b) return a.huid > b.huid end)
+            -- Nvim 0.13 shows the `menu` of dict items in the popup menu.
+            local dicts = vim.fn.has("nvim-0.13") == 1
+            for _, t in ipairs(tasks) do
+                candidates[#candidates + 1] = dicts and { word = t.huid, menu = t.title } or t.huid
             end
-            table.sort(candidates, function(a, b) return a > b end)
         elseif sub == "ls" then
             local seen = {}
             local tags = db and task.described_tags(db) or {}
@@ -386,7 +405,9 @@ function M.complete(arglead, cmdline, cursorpos)
         end
     end
 
-    return vim.tbl_filter(function(c) return vim.startswith(c, arglead) end, candidates)
+    return vim.tbl_filter(function(c)
+        return vim.startswith(type(c) == "table" and c.word or c, arglead)
+    end, candidates)
 end
 
 return M

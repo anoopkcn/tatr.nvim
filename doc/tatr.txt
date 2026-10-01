@@ -19,8 +19,7 @@ time the task was created, `YYYYMMDD-HHMMSS`, optionally extended with a
 suffix: `20260830-000838-rexim`.
 
 The `tasks/` folder is found by walking up from the directory of the current
-buffer, or from the working directory for buffers that are not files. oil.nvim
-directory buffers are understood too.
+buffer, or from the working directory for buffers that are not files.
 
 Everything except |:Tatr-ls| is implemented in Lua and does not need the
 `tatr` executable.
@@ -30,7 +29,8 @@ Everything except |:Tatr-ls| is implemented in Lua and does not need the
 
                                                                        *:Tatr*
 :Tatr {subcommand} [args]
-    Subcommands, HUIDs, tags and TQL keywords complete with <Tab>.
+    Subcommands, HUIDs, tags and TQL keywords complete with <Tab>. On
+    Neovim 0.13+ the popup menu shows the task title next to each HUID.
 
                                                                    *:Tatr-new*
 :Tatr new [title]
@@ -41,6 +41,8 @@ Everything except |:Tatr-ls| is implemented in Lua and does not need the
         - STATUS: OPEN
         - PRIORITY: 100
         - TAGS: scope
+
+        No description.
 <
                                                                   *:Tatr-todo*
 :Tatr todo
@@ -50,11 +52,13 @@ Everything except |:Tatr-ls| is implemented in Lua and does not need the
         // TODO(2026-01-02 03:04:05): make it fast
 <   The second one uses its timestamp as the HUID. The line is rewritten to: >
         // TASK(20260102-030405): make it fast
-<
+<   A trailing comment closer, from 'commentstring' or one of `-->` and `*/`,
+    is kept on the line but left out of the task title.
                                                                   *:Tatr-find*
 :Tatr find [huid]
     Open the task `huid`. Without an argument uses the HUID under the cursor,
-    and without one of those picks from the open tasks with |vim.ui.select()|.
+    and without one of those loads the open tasks into the |quickfix| list,
+    sorted and formatted like `tatr ls`.
 
                                                                   *:Tatr-goto*
 :Tatr goto
@@ -70,7 +74,8 @@ Everything except |:Tatr-ls| is implemented in Lua and does not need the
     Grep the project for `huid` and load the matches into the |quickfix|
     list. Without an argument uses the HUID under the cursor, then the task
     the current buffer belongs to. Uses `rg` when available, `grep`
-    otherwise. `.git/` is skipped.
+    otherwise. Like `tatr ref`, only `.git/` is skipped: gitignored files
+    are searched too.
 
                                                                   *:Tatr-yank*
 :Tatr yank

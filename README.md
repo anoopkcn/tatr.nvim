@@ -11,7 +11,8 @@ Emacs `tatr.el` workflow.
 
 - Create a task from a title, or from a `TODO:` comment under the cursor
   (the comment is rewritten to `TASK(<HUID>): ...`)
-- Jump to a task by the HUID under the cursor, by argument, or from a picker
+- Jump to a task by the HUID under the cursor or by argument, or list the
+  open tasks into the quickfix list
 - Grep the project for references to a task into the quickfix list
 - List tasks with a [TQL](https://github.com/tsoding/tatr#tatr-query-language-tql)
   query into the quickfix list
@@ -45,17 +46,17 @@ Calling `setup()` is optional. The `:Tatr` command works with the defaults.
 |-|-|
 | `:Tatr new [title]` | Create a task and open its `TASK.md`. Prompts for the title if omitted. |
 | `:Tatr todo` | Turn the `TODO: title` or `TODO(YYYY-MM-DD HH:MM:SS): title` on the current line into a task and rewrite the line to `TASK(<HUID>): title`. The timestamped form uses the timestamp as the HUID. |
-| `:Tatr find [huid]` | Open a task. Uses the argument, then the HUID under the cursor, then a picker of open tasks. |
+| `:Tatr find [huid]` | Open a task. Uses the argument, then the HUID under the cursor. Without either, loads the open tasks into the quickfix list. |
 | `:Tatr goto` | Open the task under the cursor: the HUID under the cursor, or the `TASK(<HUID>)` reference on the current line. |
-| `:Tatr ref [huid]` | Grep the project for a HUID into the quickfix list. Uses the argument, then the HUID under the cursor, then the task the current buffer belongs to. |
+| `:Tatr ref [huid]` | Grep the project for a HUID into the quickfix list. Uses the argument, then the HUID under the cursor, then the task the current buffer belongs to. Like `tatr ref`, gitignored files are searched too. |
 | `:Tatr yank` | Copy the HUID of the task the current buffer belongs to. |
 | `:Tatr ls [query]` | Run `tatr ls [query]` and load the result into the quickfix list, e.g. `:Tatr ls :bug and not :ui` or `:Tatr ls -c`. |
 
-Subcommands, HUIDs, tags and TQL keywords complete with `<Tab>`.
+Subcommands, HUIDs, tags and TQL keywords complete with `<Tab>`. On Neovim
+0.13+ the popup menu shows the task title next to each HUID.
 
 The `tasks/` folder is found by walking up from the current buffer's
 directory, or from the working directory for buffers that are not files.
-[oil.nvim](https://github.com/stevearc/oil.nvim) buffers are understood too.
 
 ## Configuration
 
